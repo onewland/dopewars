@@ -4,6 +4,8 @@ import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import Table from 'react-bootstrap/Table';
+import DropdownButton from 'react-bootstrap/DropdownButton';
+import Dropdown from 'react-bootstrap/Dropdown';
 
 import './App.css';
 
@@ -43,6 +45,7 @@ class OfferViewer extends React.Component {
   render() {
     return (
       <Col>
+        <header>City Offers</header>
         <Table>
           <thead>
             <tr>
@@ -61,15 +64,17 @@ class OfferViewer extends React.Component {
 
 class InventoryViewer extends React.Component {
   itemList() {
-    return Object.entries(this.props.inventory).map(entry => {
-      const [key,val] = entry;
-      return (
-        <tr key={key}>
-          <td>{key}</td>
-          <td>{val}</td>
-        </tr>
-      );
-    });
+    return Object.entries(this.props.inventory)
+      .filter(entry => entry[1] > 0)
+      .map(entry => {
+        const [key,val] = entry;
+        return (
+          <tr key={key}>
+            <td>{key}</td>
+            <td>{val}</td>
+          </tr>
+        );
+      });
   }
 
   render() {
@@ -89,26 +94,49 @@ class InventoryViewer extends React.Component {
   }
 }
 
+const offer = (name, price) => ({productName: name, price: price})
+const offersBase = [
+  offer('weed', 100),
+  offer('coke', 200),
+  offer('ecstasy', 150),
+  offer('heroin', 500),
+  offer('meth', 300),
+  offer('codeine with promethazine', 50)
+]
+
 
 class Game extends React.Component {
   constructor(props) {
     super(props);
 
-    let offers = [
-      {
-        productName: 'weed',
-        price: 100
-      },
-      {
-        productName: 'coke', 
-        price: 200
-      }
-    ];
+    const city = (name, ...meta) => ({name: name, meta: meta})
 
-    this.state = {money: props.startMoney, offers: offers, playerInventory: {}};
+    let availableCities = [
+      city("San Francisco"),
+      city("New York"),
+      city("Houston")
+    ]
+
+    this.state = {
+      dayCount: 0,
+      money: props.startMoney,
+      offers: this.shuffleOffers(availableCities[0]),
+      playerInventory: {},
+      currentCity: availableCities[0],
+      availableCities: availableCities
+    };
+
     this.adjustMoneyCurry = this.adjustMoneyCurry.bind(this);
     this.onPlayerBalanceChange = this.onPlayerBalanceChange.bind(this);
     this.onPlayerInventoryChange = this.onPlayerInventoryChange.bind(this);
+  }
+
+  shuffleOffers() {
+    return offersBase.map(offerBase => {
+      const proportion = 1 + (Math.floor(Math.random() * 250)/100-0.5);
+
+      return offer(offerBase.productName, Math.floor(offerBase.price * proportion))
+    });
   }
 
   adjustMoneyCurry(amount) {
@@ -136,28 +164,53 @@ class Game extends React.Component {
   render() {
     return (
       <Container>
-        <Row>
+        <Row id="header-row">
           <Col>
             <header><span role="img" aria-label="stylized 100">💯</span>/3 Dopewars</header>
+            <header>Current City: {this.state.currentCity.name} </header>
           </Col>
+            {this.nextCityDropdown()}
         </Row>
         <Row>
           <Col className="space-children">
             <header>Player View</header>
             <br/>
-            <Button onClick={this.adjustMoneyCurry(100)}>Add $100</Button>
-            <Button onClick={this.adjustMoneyCurry(-100)}>Sub $100</Button>
+            <Button onClick={this.adjustMoneyCurry(1000)}>Add $1000</Button>
+            <Button onClick={this.adjustMoneyCurry(-1000)}>Sub $1000</Button>
             <MoneyViewer money={this.state.money}/>
             <InventoryViewer inventory={this.state.playerInventory}/>
           </Col>
           <OfferViewer
-           money={this.state.money} 
-           offers={this.state.offers}
-           onPlayerBalanceChange={this.onPlayerBalanceChange} 
-           onPlayerInventoryChange={this.onPlayerInventoryChange}
-           playerInventory={this.state.playerInventory} />
+            money={this.state.money} 
+            offers={this.state.offers}
+            onPlayerBalanceChange={this.onPlayerBalanceChange} 
+            onPlayerInventoryChange={this.onPlayerInventoryChange}
+            playerInventory={this.state.playerInventory} />
         </Row>
       </Container>
+    );
+  }
+
+  selectNextCity(nextCity) {
+    this.setState({
+      dayCount: this.state.dayCount + 1,
+      currentCity: nextCity,
+      offers: this.shuffleOffers()
+    });
+  }
+
+  nextCityDropdown() {
+    return (
+      <Col>
+        <h3>Current Day: {this.state.dayCount} / {this.props.maxDays}</h3>
+        <DropdownButton title="Select Next City">
+          {this.state.availableCities.map(city => 
+              <Dropdown.Item key={city.name} onSelect={() => this.selectNextCity(city)}>
+                {city.name}
+              </Dropdown.Item>
+          )}
+        </DropdownButton>
+      </Col>
     );
   }
 }
@@ -165,7 +218,7 @@ class Game extends React.Component {
 function App() {
   return (
     <div className="App">
-      <Game startMoney={100}/>
+      <Game startMoney={500} maxDays={30}/>
     </div>
   );
 }
