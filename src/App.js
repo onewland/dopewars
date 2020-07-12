@@ -105,6 +105,9 @@ const offersBase = [
 ]
 
 
+const GAME_STATE_IN_PROGRESS = 'InProgress';
+const GAME_STATE_OVER = 'GameOver';
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -123,7 +126,8 @@ class Game extends React.Component {
       offers: this.shuffleOffers(availableCities[0]),
       playerInventory: {},
       currentCity: availableCities[0],
-      availableCities: availableCities
+      availableCities: availableCities,
+      gameState: GAME_STATE_IN_PROGRESS
     };
 
     this.adjustMoneyCurry = this.adjustMoneyCurry.bind(this);
@@ -161,7 +165,7 @@ class Game extends React.Component {
     }
   }
 
-  render() {
+  inGameView() {
     return (
       <Container>
         <Row id="header-row">
@@ -181,9 +185,9 @@ class Game extends React.Component {
             <InventoryViewer inventory={this.state.playerInventory}/>
           </Col>
           <OfferViewer
-            money={this.state.money} 
+            money={this.state.money}
             offers={this.state.offers}
-            onPlayerBalanceChange={this.onPlayerBalanceChange} 
+            onPlayerBalanceChange={this.onPlayerBalanceChange}
             onPlayerInventoryChange={this.onPlayerInventoryChange}
             playerInventory={this.state.playerInventory} />
         </Row>
@@ -191,12 +195,42 @@ class Game extends React.Component {
     );
   }
 
+  gameOverView() {
+    return (
+      <Container>
+        <Row id="header-row">
+          <Col>
+            <header><span role="img" aria-label="stylized 100">💯</span>/3 Dopewars</header>
+            <header>Game Over</header>
+            <header>You finished with ${this.state.money}</header>
+          </Col>
+        </Row>
+      </Container>
+    )
+  }
+
+  render() {
+    return this.state.gameState === GAME_STATE_IN_PROGRESS ?
+        this.inGameView() :
+        this.gameOverView();
+  }
+
   selectNextCity(nextCity) {
-    this.setState({
-      dayCount: this.state.dayCount + 1,
-      currentCity: nextCity,
-      offers: this.shuffleOffers()
-    });
+    if(this.state.gameState === GAME_STATE_IN_PROGRESS) {
+      if(this.state.dayCount < this.gameLength()) {
+        this.setState({
+          dayCount: this.state.dayCount + 1,
+          currentCity: nextCity,
+          offers: this.shuffleOffers()
+        });
+      } else if(this.state.dayCount === this.gameLength()) {
+        this.setState({gameState: GAME_STATE_OVER})
+      }
+    }
+  }
+
+  gameLength() {
+    return this.props.maxDays;
   }
 
   nextCityDropdown() {
@@ -204,7 +238,7 @@ class Game extends React.Component {
       <Col>
         <h3>Current Day: {this.state.dayCount} / {this.props.maxDays}</h3>
         <DropdownButton title="Select Next City">
-          {this.state.availableCities.map(city => 
+          {this.state.availableCities.map(city =>
               <Dropdown.Item key={city.name} onSelect={() => this.selectNextCity(city)}>
                 {city.name}
               </Dropdown.Item>
@@ -218,7 +252,7 @@ class Game extends React.Component {
 function App() {
   return (
     <div className="App">
-      <Game startMoney={500} maxDays={30}/>
+      <Game startMoney={500} maxDays={10}/>
     </div>
   );
 }
