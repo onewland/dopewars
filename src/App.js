@@ -6,6 +6,7 @@ import Col from 'react-bootstrap/Col';
 import Table from 'react-bootstrap/Table';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import Dropdown from 'react-bootstrap/Dropdown';
+import Form from 'react-bootstrap/Form';
 
 import './App.css';
 
@@ -16,18 +17,49 @@ class MoneyViewer extends React.Component {
 }
 
 class OfferViewer extends React.Component {
+  constructor(props) {
+    super(props);
+
+    let offerQuantities = this.emptyOfferQuantities();
+
+    this.state = {offerQuantities: offerQuantities}
+  }
+
+  emptyOfferQuantities() {
+    let offerQuantities = {};
+
+    this.props.offers.forEach(offer =>
+      { offerQuantities[offer.productName] = { buy: 0, sell: 0 }; }
+    );
+    return offerQuantities;
+  }
+
+  resetOfferQuantities() {
+    this.setState({...this.state, offerQuantities: this.emptyOfferQuantities()})
+  }
+
   attemptPurchase(offer) {
-    if(this.props.money >= offer.price) {
-      this.props.onPlayerBalanceChange(this.props.money - offer.price);
-      this.props.onPlayerInventoryChange(offer.productName, 1);
+    console.log(this.state)
+
+    const attemptPurchaseQuantity = this.state.offerQuantities[offer.productName]['buy']
+    const totalPurchaseCost = offer.price * attemptPurchaseQuantity;
+
+    if(this.props.money >= totalPurchaseCost) {
+      this.props.onPlayerBalanceChange(this.props.money - totalPurchaseCost);
+      this.props.onPlayerInventoryChange(offer.productName, attemptPurchaseQuantity);
+      this.resetOfferQuantities()
     }
   }
 
   attemptSale(offer) {
-    let count = this.props.playerInventory[offer.productName]
-    if(count > 0) {
-      this.props.onPlayerBalanceChange(this.props.money + offer.price);
-      this.props.onPlayerInventoryChange(offer.productName, -1);
+    const attemptSaleQuantity = this.state.offerQuantities[offer.productName]['sell']
+    const totalSaleAmount = attemptSaleQuantity * offer.price
+    const count = this.props.playerInventory[offer.productName]
+
+    if(count >= attemptSaleQuantity) {
+      this.props.onPlayerBalanceChange(this.props.money + totalSaleAmount);
+      this.props.onPlayerInventoryChange(offer.productName, -attemptSaleQuantity);
+      this.resetOfferQuantities()
     }
   }
 
@@ -36,10 +68,51 @@ class OfferViewer extends React.Component {
       <tr key={offer.productName}>
         <td>{offer.productName}</td>
         <td>{offer.price}</td>
-        <td><Button onClick={() => this.attemptPurchase(offer)}>Buy</Button></td>
-        <td><Button onClick={() => this.attemptSale(offer)}>Sell</Button></td>
+        <td>
+          <Form.Control
+              data-offer-type="buy"
+              data-product={offer.productName}
+              onChange={(evt) => this.adjustOfferQuantity(evt)}
+              type="number"
+              value={this.state.offerQuantities[offer.productName]['buy']}
+              placeholder="# Buy"/>
+        </td>
+        <td><Button data-product={offer.productName} onClick={() => this.attemptPurchase(offer)}>Buy</Button></td>
+        <td>
+          <Form.Control
+            data-offer-type="sell"
+            data-product={offer.productName}
+            onChange={(evt) => this.adjustOfferQuantity(evt)}
+            type="number"
+            value={this.state.offerQuantities[offer.productName]['sell']}
+            placeholder="# Sell"/>
+        </td>
+        <td><Button data-product={offer.productName} onClick={() => this.attemptSale(offer)}>Sell</Button></td>
       </tr>
     );
+  }
+
+  adjustOfferQuantity(evt) {
+    console.log('change')
+    const input = evt.target;
+    const productName = input.getAttribute("data-product");
+    const offerType = input.getAttribute("data-offer-type");
+
+    const oldState = this.state
+    oldState.offerQuantities[productName][offerType] = input.value
+
+    console.log('parseIntOut');
+    console.log(parseInt(input.value));
+
+    this.setState({...this.state,
+      offerQuantities: {
+        ...this.state.offerQuantities,
+        [productName]: {
+          ...this.state.offerQuantities[productName],
+          [offerType]: parseInt(input.value)
+        }
+      }
+    });
   }
 
   render() {
@@ -137,6 +210,7 @@ class Game extends React.Component {
 
   shuffleOffers() {
     return offersBase.map(offerBase => {
+      // choose a price between 0.5x and 2.5x the base, even probability of distributon
       const proportion = 1 + (Math.floor(Math.random() * 250)/100-0.5);
 
       return offer(offerBase.productName, Math.floor(offerBase.price * proportion))
