@@ -34,3 +34,7 @@ header {
 #header-row {
   margin-bottom: 4em;
 }
+
+#moneyDisplay {
+  font-size: x-large;
+}

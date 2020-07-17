@@ -12,7 +12,7 @@ import './App.css';
 
 class MoneyViewer extends React.Component {
   render() {
-    return <span id="moneyDisplay">${this.props.money}</span>
+    return <span id="moneyDisplay">Current Cash: ${this.props.money}</span>
   }
 }
 
@@ -63,6 +63,11 @@ class OfferViewer extends React.Component {
     }
   }
 
+  maxPurchase(offer) {
+    const playerCash = this.props.money;
+    return Math.floor(playerCash/offer.price);
+  }
+
   offerList() {
     return this.props.offers.map(offer =>
       <tr key={offer.productName}>
@@ -77,7 +82,7 @@ class OfferViewer extends React.Component {
               value={this.state.offerQuantities[offer.productName]['buy']}
               placeholder="# Buy"/>
         </td>
-        <td><Button data-product={offer.productName} onClick={() => this.attemptPurchase(offer)}>Buy</Button></td>
+        <td><Button data-product={offer.productName} onClick={() => this.attemptPurchase(offer)}>Buy (Max: {this.maxPurchase(offer)})</Button></td>
         <td>
           <Form.Control
             data-offer-type="sell"
@@ -253,17 +258,26 @@ class Game extends React.Component {
           <Col className="space-children">
             <header>Player View</header>
             <br/>
-            <Button onClick={this.adjustMoneyCurry(1000)}>Add $1000</Button>
-            <Button onClick={this.adjustMoneyCurry(-1000)}>Sub $1000</Button>
             <MoneyViewer money={this.state.money}/>
             <InventoryViewer inventory={this.state.playerInventory}/>
           </Col>
+        </Row>
+        <Row>
           <OfferViewer
             money={this.state.money}
             offers={this.state.offers}
             onPlayerBalanceChange={this.onPlayerBalanceChange}
             onPlayerInventoryChange={this.onPlayerInventoryChange}
             playerInventory={this.state.playerInventory} />
+        </Row>
+        <hr/>
+        <Row>
+          <Col className="col-6">
+            <header>Debug Stuff</header>
+            <br/>
+            <Button onClick={this.adjustMoneyCurry(1000)} className="m-3">Add $1000</Button>
+            <Button onClick={this.adjustMoneyCurry(-1000)} className="m-3">Sub $1000</Button>
+          </Col>
         </Row>
       </Container>
     );
