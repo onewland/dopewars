@@ -7,6 +7,7 @@ import Table from 'react-bootstrap/Table';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
 import './App.css';
 
@@ -38,10 +39,12 @@ class OfferViewer extends React.Component {
     this.setState({...this.state, offerQuantities: this.emptyOfferQuantities()})
   }
 
-  attemptPurchase(offer) {
+  attemptPurchase(offer, quantity) {
     console.log(this.state)
 
-    const attemptPurchaseQuantity = this.state.offerQuantities[offer.productName]['buy']
+    const attemptPurchaseQuantity = quantity == null ?
+      this.state.offerQuantities[offer.productName]['buy'] :
+      quantity;
     const totalPurchaseCost = offer.price * attemptPurchaseQuantity;
 
     if(this.props.money >= totalPurchaseCost) {
@@ -51,8 +54,10 @@ class OfferViewer extends React.Component {
     }
   }
 
-  attemptSale(offer) {
-    const attemptSaleQuantity = this.state.offerQuantities[offer.productName]['sell']
+  attemptSale(offer, quantity) {
+    const attemptSaleQuantity = quantity == null ?
+      this.state.offerQuantities[offer.productName]['sell'] :
+      quantity;
     const totalSaleAmount = attemptSaleQuantity * offer.price
     const count = this.props.playerInventory[offer.productName]
 
@@ -68,32 +73,82 @@ class OfferViewer extends React.Component {
     return Math.floor(playerCash/offer.price);
   }
 
+
+  maxSale(offer) {
+    // const playerQuantity = ;
+    return this.props.playerInventory[offer.productName] || 0;
+  }
+
+  maxPurchaseButton(offer) {
+    return (
+      <Button
+        data-product={offer.productName}
+        onClick={() => this.attemptPurchase(offer)}
+        variant="warning">
+        Buy Max: {this.maxPurchase(offer)}
+      </Button>
+    );
+  }
+
   offerList() {
     return this.props.offers.map(offer =>
-      <tr key={offer.productName}>
-        <td>{offer.productName}</td>
-        <td>{offer.price}</td>
-        <td>
-          <Form.Control
-              data-offer-type="buy"
+      <React.Fragment>
+        <tr key={offer.productName + "-adjustable"}>
+          <td>{offer.productName}</td>
+          <td>{offer.price}</td>
+          <td>
+            <Form.Control
+                data-offer-type="buy"
+                data-product={offer.productName}
+                onChange={(evt) => this.adjustOfferQuantity(evt)}
+                type="number"
+                value={this.state.offerQuantities[offer.productName]['buy']}
+                placeholder="# Buy"/>
+          </td>
+          <td>
+            <Button data-product={offer.productName}
+                    onClick={() => this.attemptPurchase(offer)}>
+              Buy {this.state.offerQuantities[offer.productName]['buy']}
+            </Button>
+          </td>
+          <td>
+            <Form.Control
+              data-offer-type="sell"
               data-product={offer.productName}
               onChange={(evt) => this.adjustOfferQuantity(evt)}
               type="number"
-              value={this.state.offerQuantities[offer.productName]['buy']}
-              placeholder="# Buy"/>
-        </td>
-        <td><Button data-product={offer.productName} onClick={() => this.attemptPurchase(offer)}>Buy (Max: {this.maxPurchase(offer)})</Button></td>
-        <td>
-          <Form.Control
-            data-offer-type="sell"
-            data-product={offer.productName}
-            onChange={(evt) => this.adjustOfferQuantity(evt)}
-            type="number"
-            value={this.state.offerQuantities[offer.productName]['sell']}
-            placeholder="# Sell"/>
-        </td>
-        <td><Button data-product={offer.productName} onClick={() => this.attemptSale(offer)}>Sell</Button></td>
-      </tr>
+              value={this.state.offerQuantities[offer.productName]['sell']}
+              placeholder="# Sell"/>
+          </td>
+          <td>
+            <Button data-product={offer.productName}
+                    onClick={() => this.attemptSale(offer)}>
+              Sell {this.state.offerQuantities[offer.productName]['sell']}
+            </Button>
+          </td>
+        </tr>
+        <tr key={offer.productName + "-fixed"}>
+          <td>{/* name column */}</td>
+          <td>{/* individual price column */}</td>
+          <td>{/* purchase quantity selector column */}</td>
+          <td>
+            <Button
+              data-product={offer.productName}
+              onClick={() => this.attemptPurchase(offer, this.maxPurchase(offer))}
+              variant="warning">
+                Buy Max: {this.maxPurchase(offer)}
+            </Button>
+          </td>
+          <td>{/* sale quantity selector column */}</td>
+          <td>
+            <Button data-product={offer.productName}
+                    onClick={() => this.attemptSale(offer, this.maxSale(offer))}
+                    variant="warning">
+              Sell Max: {this.maxSale(offer)}
+            </Button>
+          </td>
+        </tr>
+      </React.Fragment>
     );
   }
 
@@ -186,6 +241,18 @@ const offersBase = [
 const GAME_STATE_IN_PROGRESS = 'InProgress';
 const GAME_STATE_OVER = 'GameOver';
 
+const gameOverConditions = {
+  HitDayLimit: {
+    GameOverMessage: 'You survived.'
+  },
+  CopEncounter: {
+    GameOverMessage: 'You got busted by the cops!'
+  },
+  QuitTheGame: {
+    GameOverMessage: 'It\'s time for a new life.'
+  }
+}
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -211,6 +278,7 @@ class Game extends React.Component {
     this.adjustMoneyCurry = this.adjustMoneyCurry.bind(this);
     this.onPlayerBalanceChange = this.onPlayerBalanceChange.bind(this);
     this.onPlayerInventoryChange = this.onPlayerInventoryChange.bind(this);
+    this.quitGame = this.quitGame.bind(this);
   }
 
   shuffleOffers() {
@@ -252,7 +320,7 @@ class Game extends React.Component {
             <header><span role="img" aria-label="stylized 100">💯</span>/3 Dopewars</header>
             <header>Current City: {this.state.currentCity.name} </header>
           </Col>
-            {this.nextCityDropdown()}
+            {this.gameAdvanceOptions()}
         </Row>
         <Row>
           <Col className="space-children">
@@ -290,6 +358,7 @@ class Game extends React.Component {
           <Col>
             <header><span role="img" aria-label="stylized 100">💯</span>/3 Dopewars</header>
             <header>Game Over</header>
+            <header>{this.state.gameOverCondition.GameOverMessage}</header>
             <header>You finished with ${this.state.money}</header>
           </Col>
         </Row>
@@ -306,32 +375,58 @@ class Game extends React.Component {
   selectNextCity(nextCity) {
     if(this.state.gameState === GAME_STATE_IN_PROGRESS) {
       if(this.state.dayCount < this.gameLength()) {
-        this.setState({
-          dayCount: this.state.dayCount + 1,
-          currentCity: nextCity,
-          offers: this.shuffleOffers()
-        });
+        this.transitionCity(nextCity);
       } else if(this.state.dayCount === this.gameLength()) {
-        this.setState({gameState: GAME_STATE_OVER})
+        this.setState({
+          gameState: GAME_STATE_OVER,
+          gameOverCondition: gameOverConditions.HitDayLimit
+        })
       }
     }
+  }
+
+  transitionCity(nextCity) {
+    let copEncounter = Math.random() < 0.1;
+
+    if(copEncounter) {
+      this.setState({
+        gameState: GAME_STATE_OVER,
+        gameOverCondition: gameOverConditions.CopEncounter
+      });
+    }
+
+    this.setState({
+      dayCount: this.state.dayCount + 1,
+      currentCity: nextCity,
+      offers: this.shuffleOffers()
+    });
   }
 
   gameLength() {
     return this.props.maxDays;
   }
 
-  nextCityDropdown() {
+  quitGame() {
+    this.setState({
+      gameState: GAME_STATE_OVER,
+      gameOverCondition: gameOverConditions.QuitTheGame
+    })
+  }
+
+  gameAdvanceOptions() {
     return (
       <Col>
         <h3>Current Day: {this.state.dayCount} / {this.props.maxDays}</h3>
-        <DropdownButton title="Select Next City">
-          {this.state.availableCities.map(city =>
-              <Dropdown.Item key={city.name} onSelect={() => this.selectNextCity(city)}>
-                {city.name}
-              </Dropdown.Item>
-          )}
-        </DropdownButton>
+        <ButtonGroup className="mb-3">
+          <DropdownButton title="Select Next City">
+            {this.state.availableCities.map(city =>
+                <Dropdown.Item key={city.name} onSelect={() => this.selectNextCity(city)}>
+                  {city.name}
+                </Dropdown.Item>
+            )}
+          </DropdownButton>
+          <Button variant="warning" onClick={this.quitGame}>Quit the Game</Button>
+        </ButtonGroup>
       </Col>
     );
   }
