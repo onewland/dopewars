@@ -360,6 +360,7 @@ class Game extends React.Component {
             <header>Game Over</header>
             <header>{this.state.gameOverCondition.GameOverMessage}</header>
             <header>You finished with ${this.state.money}</header>
+            <header>Refresh to play again.</header>
           </Col>
         </Row>
       </Container>
@@ -386,7 +387,7 @@ class Game extends React.Component {
   }
 
   transitionCity(nextCity) {
-    let copEncounter = Math.random() < 0.1;
+    let copEncounter = Math.random() < 0.025;
 
     if(copEncounter) {
       this.setState({
